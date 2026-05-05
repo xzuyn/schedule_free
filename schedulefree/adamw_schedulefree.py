@@ -170,9 +170,10 @@ class AdamWScheduleFree(torch.optim.Optimizer):
                 # Normalize grad in-place for memory efficiency
                 torch._foreach_div_(grad, denom)
 
-                # Weight decay calculated at y
+                # Cautious weight decay calculated at y
                 if decay != 0:
-                    torch._foreach_add_(grad, y, alpha=decay)
+                    masks = [((g * py) >= 0).to(g.dtype) for g, py in zip(grad, y)]
+                    torch._foreach_addcmul_(grad, masks, y, value=decay)
 
                 # These operations update y in-place,
                 # without computing x explicitly.
@@ -197,9 +198,10 @@ class AdamWScheduleFree(torch.optim.Optimizer):
                     # Reuse grad buffer for memory efficiency
                     grad_normalized = grad.div_(denom)
 
-                    # Weight decay calculated at y
+                    # Cautious weight decay calculated at y
                     if decay != 0:
-                        grad_normalized.add_(y, alpha=decay)
+                        mask = (grad_normalized * y >= 0).to(grad_normalized.dtype)
+                        grad_normalized.addcmul_(mask, y, value=decay)
 
                     # These operations update y in-place,
                     # without computing x explicitly.
